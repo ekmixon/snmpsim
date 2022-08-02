@@ -18,15 +18,13 @@ def get_record(fileObj, line_no=None, offset=0):
     while line:
         tline = line.strip()
 
-        # skip comment or blank line
-        if not tline or tline.startswith(str2octs('#')):
-            offset += len(line)
-            line = fileObj.readline()
-            if line_no is not None and line:
-                line_no += 1
-
-        else:
+        if tline and not tline.startswith(str2octs('#')):
             break
+
+        offset += len(line)
+        line = fileObj.readline()
+        if line_no is not None and line:
+            line_no += 1
 
     return line, line_no, offset
 
@@ -93,8 +91,4 @@ def search_record_by_oid(oid, file_obj, text_parser):
 
         prev_mid = mid
 
-    if lo == mid:
-        return lo
-
-    else:
-        return hi
+    return lo if lo == mid else hi

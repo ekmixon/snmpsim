@@ -14,8 +14,7 @@ from snmpsim import log
 from snmpsim import utils
 from snmpsim.record.search.file import get_record
 
-dbm = utils.try_load('anydbm')
-if dbm:
+if dbm := utils.try_load('anydbm'):
     whichdb = utils.try_load('whichdb')
 
 else:
@@ -35,7 +34,7 @@ class RecordIndex(object):
         except ValueError:
             self._db_file = text_file
 
-        self._db_file += os.path.extsep + 'dbm'
+        self._db_file += f'{os.path.extsep}dbm'
 
         self._db_file = os.path.join(
             confdir.cache, os.path.splitdrive(
@@ -47,17 +46,15 @@ class RecordIndex(object):
         self._text_file_time = 0
 
     def __str__(self):
-        return 'Data file %s, %s-indexed, %s' % (
-            self._text_file, self._db_type, self._db and 'opened' or 'closed')
+        return f"Data file {self._text_file}, {self._db_type}-indexed, {self._db and 'opened' or 'closed'}"
 
     def is_open(self):
         return self._db is not None
 
     def get_handles(self):
-        if self.is_open():
-            if self._text_file_time != os.stat(self._text_file)[8]:
-                log.info('Text file %s modified, closing' % self._text_file)
-                self.close()
+        if self.is_open() and self._text_file_time != os.stat(self._text_file)[8]:
+            log.info(f'Text file {self._text_file} modified, closing')
+            self.close()
 
         if not self.is_open():
             self.create()
@@ -83,7 +80,7 @@ class RecordIndex(object):
             if os.path.exists(db_file):
                 if text_file_time < os.stat(db_file)[8]:
                     if index_needed:
-                        log.info('Forced index rebuild %s' % db_file)
+                        log.info(f'Forced index rebuild {db_file}')
 
                     elif not whichdb.whichdb(self._db_file):
                         index_needed = True
@@ -92,7 +89,7 @@ class RecordIndex(object):
 
                 else:
                     index_needed = True
-                    log.info('Index %s out of date' % db_file)
+                    log.info(f'Index {db_file} out of date')
 
                 break
 
@@ -130,8 +127,7 @@ class RecordIndex(object):
                 text = self._text_parser.open(self._text_file)
 
             except Exception as exc:
-                raise error.SnmpsimError(
-                    'Failed to open data file %s: %s' % (self._db_file, exc))
+                raise error.SnmpsimError(f'Failed to open data file {self._db_file}: {exc}')
 
             log.info(
                 'Building index %s for data file %s (open flags '
@@ -198,12 +194,7 @@ class RecordIndex(object):
                 # for lines serving subtrees, type is empty in tag field
                 db[oid] = '%d,%d,%d' % (offset, tag[0] == ':', prev_offset)
 
-                if tag[0] == ':':
-                    prev_offset = offset
-
-                else:
-                    prev_offset = -1   # not a subtree - no back reference
-
+                prev_offset = offset if tag[0] == ':' else -1
                 offset += len(line)
 
             text.close()

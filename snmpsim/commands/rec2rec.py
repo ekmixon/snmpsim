@@ -32,13 +32,10 @@ from snmpsim.record.search.file import get_record
 class SnmprecRecordMixIn(object):
 
     def evaluateValue(self, oid, tag, value, **context):
-        # Variation module reference
-        if ':' in tag:
-            context['backdoor']['textTag'] = tag
-            return oid, '', value
-
-        else:
+        if ':' not in tag:
             return snmprec.SnmprecRecord.evaluate_value(self, oid, tag, value)
+        context['backdoor']['textTag'] = tag
+        return oid, '', value
 
     def formatValue(self, oid, value, **context):
         if 'textTag' in context['backdoor']:
@@ -319,7 +316,7 @@ if __name__ == '__main__':
         rc = 0
 
     except Exception:
-        sys.stderr.write('process terminated: %s' % sys.exc_info()[1])
+        sys.stderr.write(f'process terminated: {sys.exc_info()[1]}')
 
         for line in traceback.format_exception(*sys.exc_info()):
             sys.stderr.write(line.replace('\n', ';'))

@@ -34,8 +34,7 @@ class AbstractLogger(object):
 
     def dec_ident(self, amount=2):
         self._ident -= amount
-        if self._ident < 0:
-            self._ident = 0
+        self._ident = max(self._ident, 0)
 
     def init(self, *priv):
         pass
@@ -48,7 +47,7 @@ class SyslogLogger(AbstractLogger):
     )
 
     def init(self, *priv):
-        if len(priv) < 1:
+        if not priv:
             raise SnmpsimError(
                 'Bad syslog params, need at least facility, also accept '
                 'host, port, socktype (tcp|udp)')
@@ -85,7 +84,7 @@ class SyslogLogger(AbstractLogger):
                           socket.SOCK_STREAM or socket.SOCK_DGRAM))
 
         except Exception as exc:
-            raise SnmpsimError('Bad syslog option(s): %s' % exc)
+            raise SnmpsimError(f'Bad syslog option(s): {exc}')
 
         handler.setFormatter(
             logging.Formatter('%(asctime)s %(name)s: %(message)s'))
@@ -119,7 +118,8 @@ class FileLogger(AbstractLogger):
         def _filename(self):
             return os.path.join(
                 os.path.dirname(self.baseFilename),
-                '.' + os.path.basename(self.baseFilename) + '-timestamp')
+                f'.{os.path.basename(self.baseFilename)}-timestamp',
+            )
 
         def doRollover(self):
             try:
@@ -147,10 +147,13 @@ class FileLogger(AbstractLogger):
         if not priv:
             raise SnmpsimError('Bad log file params, need filename')
 
-        if sys.platform[:3] == 'win':
-            # fix possibly corrupted absolute windows path
-            if len(priv[0]) == 1 and priv[0].isalpha() and len(priv) > 1:
-                priv = [priv[0] + ':' + priv[1]] + list(priv[2:])
+        if (
+            sys.platform[:3] == 'win'
+            and len(priv[0]) == 1
+            and priv[0].isalpha()
+            and len(priv) > 1
+        ):
+            priv = [f'{priv[0]}:{priv[1]}'] + list(priv[2:])
 
         maxsize = 0
         maxage = None
@@ -179,8 +182,7 @@ class FileLogger(AbstractLogger):
                     maxage = ('D', int(priv[1][:-1]))
 
                 else:
-                    raise ValueError(
-                        'Unknown log rotation criterion: %s' % priv[1][-1])
+                    raise ValueError(f'Unknown log rotation criterion: {priv[1][-1]}')
 
             except ValueError:
                 raise SnmpsimError(
@@ -200,15 +202,26 @@ class FileLogger(AbstractLogger):
                 handler = handlers.WatchedFileHandler(priv[0])
 
         except Exception as exc:
-            raise SnmpsimError('Failure configure logging: %s' % exc)
+            raise SnmpsimError(f'Failure configure logging: {exc}')
 
         handler.setFormatter(logging.Formatter('%(message)s'))
 
         self._logger.addHandler(handler)
 
-        self('Log file %s, rotation rules: '
-             '%s' % (priv[0], maxsize and '> %sKB' % (maxsize/1024)
-                     or maxage and '%s%s' % (maxage[1], maxage[0]) or '<none>'))
+        self(
+            (
+                'Log file %s, rotation rules: '
+                '%s'
+                % (
+                    priv[0],
+                    maxsize
+                    and f'> {maxsize / 1024}KB'
+                    or maxage
+                    and f'{maxage[1]}{maxage[0]}'
+                    or '<none>',
+                )
+            )
+        )
 
     def __call__(self, s):
         now = time.time()
@@ -226,7 +239,7 @@ class StreamLogger(AbstractLogger):
             handler = logging.StreamHandler(self.stream)
 
         except AttributeError as exc:
-            raise SnmpsimError('Stream logger failure: %s' % exc)
+            raise SnmpsimError(f'Stream logger failure: {exc}')
 
         handler.setFormatter(logging.Formatter('%(message)s'))
 
@@ -271,17 +284,17 @@ log_level = LOG_INFO
 
 def error(message, ctx=''):
     if log_level <= LOG_ERROR:
-        msg('ERROR %s %s' % (message, ctx))
+        msg(f'ERROR {message} {ctx}')
 
 
 def info(message, ctx=''):
     if log_level <= LOG_INFO:
-        msg('%s %s' % (message, ctx))
+        msg(f'{message} {ctx}')
 
 
 def debug(message, ctx=''):
     if log_level <= LOG_DEBUG:
-        msg('DEBUG %s %s' % (message, ctx))
+        msg(f'DEBUG {message} {ctx}')
 
 
 def set_level(level):

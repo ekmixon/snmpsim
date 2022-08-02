@@ -55,13 +55,13 @@ class DataFile(AbstractLayout):
     def get_handles(self):
         if not self._record_index.is_open():
             if len(DataFile.opened_queue) > self.max_queue_entries:
-                log.info('Closing %s' % self)
+                log.info(f'Closing {self}')
                 DataFile.opened_queue[0].close()
                 del DataFile.opened_queue[0]
 
             DataFile.opened_queue.append(self)
 
-            log.info('Opening %s' % self)
+            log.info(f'Opening {self}')
 
         return self._record_index.get_handles()
 
@@ -78,8 +78,7 @@ class DataFile(AbstractLayout):
             text, db = self.get_handles()
 
         except SnmpsimError as exc:
-            log.error(
-                'Problem with data file or its index: %s' % exc)
+            log.error(f'Problem with data file or its index: {exc}')
 
             ReportingManager.update_metrics(
                 data_file=self._text_file, datafile_failure_count=1,
@@ -91,18 +90,28 @@ class DataFile(AbstractLayout):
         err_total = 0
 
         log.info(
-            'Request var-binds: %s, flags: %s, '
-            '%s' % (', '.join(['%s=<%s>' % (vb[0], vb[1].prettyPrint())
-                               for vb in var_binds]),
+            (
+                'Request var-binds: %s, flags: %s, '
+                '%s'
+                % (
+                    ', '.join(
+                        [f'{vb[0]}=<{vb[1].prettyPrint()}>' for vb in var_binds]
+                    ),
                     context.get('nextFlag') and 'NEXT' or 'EXACT',
-                    context.get('setFlag') and 'SET' or 'GET'))
+                    context.get('setFlag') and 'SET' or 'GET',
+                )
+            )
+        )
+
 
         for oid, val in var_binds:
-            text_oid = str(univ.OctetString('.'.join(['%s' % x for x in oid])))
+            text_oid = str(univ.OctetString('.'.join([f'{x}' for x in oid])))
 
             try:
                 line = self._record_index.lookup(
-                    str(univ.OctetString('.'.join(['%s' % x for x in oid]))))
+                    str(univ.OctetString('.'.join([f'{x}' for x in oid])))
+                )
+
 
             except KeyError:
                 offset = search_record_by_oid(oid, text, self._text_parser)
@@ -219,17 +228,21 @@ class DataFile(AbstractLayout):
                     _oid = oid
                     _val = error_status
                     err_total += 1
-                    log.error(
-                        'data error at %s for %s: %s' % (self, text_oid, exc))
+                    log.error(f'data error at {self} for {text_oid}: {exc}')
 
                 break
 
             rsp_var_binds.append((_oid, _val))
 
         log.info(
-            'Response var-binds: %s' % (
-                ', '.join(['%s=<%s>' % (
-                    vb[0], vb[1].prettyPrint()) for vb in rsp_var_binds])))
+            (
+                'Response var-binds: %s'
+                % ', '.join(
+                    [f'{vb[0]}=<{vb[1].prettyPrint()}>' for vb in rsp_var_binds]
+                )
+            )
+        )
+
 
         ReportingManager.update_metrics(
             data_file=self._text_file, varbind_count=vars_total,
@@ -240,7 +253,7 @@ class DataFile(AbstractLayout):
         return rsp_var_binds
 
     def __str__(self):
-        return '%s controller' % self._text_file
+        return f'{self._text_file} controller'
 
 
 def get_data_files(tgt_dir, top_len=None):
@@ -334,6 +347,6 @@ def probe_context(transport_domain, transport_address,
 
     # try legacy layout w/o contextEngineId in the path
     if context_engine_id:
-        for candidate in probe_context(
-                transport_domain, transport_address, None, context_name):
-            yield candidate
+        yield from probe_context(
+            transport_domain, transport_address, None, context_name
+        )

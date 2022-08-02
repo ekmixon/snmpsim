@@ -71,18 +71,26 @@ def main():
         help='Enable one or more categories of ASN.1 debugging.')
 
     parser.add_argument(
-        '--logging-method', type=lambda x: x.split(':'),
-        metavar='=<%s[:args]>]' % '|'.join(log.METHODS_MAP),
-        default='stderr', help='Logging method.')
+        '--logging-method',
+        type=lambda x: x.split(':'),
+        metavar=f"=<{'|'.join(log.METHODS_MAP)}[:args]>]",
+        default='stderr',
+        help='Logging method.',
+    )
+
 
     parser.add_argument(
         '--log-level', choices=log.LEVELS_MAP,
         type=str, default='info', help='Logging level.')
 
     parser.add_argument(
-        '--reporting-method', type=lambda x: x.split(':'),
-        metavar='=<%s[:args]>]' % '|'.join(ReportingManager.REPORTERS),
-        default='null', help='Activity metrics reporting method.')
+        '--reporting-method',
+        type=lambda x: x.split(':'),
+        metavar=f"=<{'|'.join(ReportingManager.REPORTERS)}[:args]>]",
+        default='null',
+        help='Activity metrics reporting method.',
+    )
+
 
     parser.add_argument(
         '--daemonize', action='store_true',
@@ -99,9 +107,13 @@ def main():
              'upon binding privileged ports')
 
     parser.add_argument(
-        '--pid-file', metavar='<FILE>', type=str,
-        default='/var/run/%s/%s.pid' % (__name__, os.getpid()),
-        help='SNMP simulation data file to write records to')
+        '--pid-file',
+        metavar='<FILE>',
+        type=str,
+        default=f'/var/run/{__name__}/{os.getpid()}.pid',
+        help='SNMP simulation data file to write records to',
+    )
+
 
     parser.add_argument(
         '--cache-dir', metavar='<DIR>', type=str,
@@ -230,8 +242,8 @@ def main():
             variation_modules, mode='variating')
 
     def configure_managed_objects(
-            data_dirs, data_index_instrum_controller, snmp_engine=None,
-            snmp_context=None):
+                data_dirs, data_index_instrum_controller, snmp_engine=None,
+                snmp_context=None):
         """Build pysnmp Managed Objects base from data files information"""
 
         _mib_instrums = {}
@@ -240,10 +252,21 @@ def main():
         for dataDir in data_dirs:
 
             log.info(
-                'Scanning "%s" directory for %s data '
-                'files...' % (dataDir, ','.join(
-                    [' *%s%s' % (os.path.extsep, x.ext)
-                     for x in variation.RECORD_TYPES.values()])))
+                (
+                    'Scanning "%s" directory for %s data '
+                    'files...'
+                    % (
+                        dataDir,
+                        ','.join(
+                            [
+                                f' *{os.path.extsep}{x.ext}'
+                                for x in variation.RECORD_TYPES.values()
+                            ]
+                        ),
+                    )
+                )
+            )
+
 
             if not os.path.exists(dataDir):
                 log.info('Directory "%s" does not exist' % dataDir)
@@ -263,7 +286,7 @@ def main():
 
                 elif full_path in _mib_instrums:
                     mib_instrum = _mib_instrums[full_path]
-                    log.info('Configuring *shared* %s' % (mib_instrum,))
+                    log.info(f'Configuring *shared* {mib_instrum}')
 
                 else:
                     data_file = datafile.DataFile(
@@ -276,9 +299,9 @@ def main():
                     _mib_instrums[full_path] = mib_instrum
                     _data_files[community_name] = full_path
 
-                    log.info('Configuring %s' % (mib_instrum,))
+                    log.info(f'Configuring {mib_instrum}')
 
-                log.info('SNMPv1/2c community name: %s' % (community_name,))
+                log.info(f'SNMPv1/2c community name: {community_name}')
 
                 contexts[univ.OctetString(community_name)] = mib_instrum
 
@@ -292,7 +315,7 @@ def main():
         del _data_files
 
     def get_bulk_handler(
-            req_var_binds, non_repeaters, max_repetitions, read_next_vars):
+                req_var_binds, non_repeaters, max_repetitions, read_next_vars):
         """Only v2c arch GETBULK handler"""
         N = min(int(non_repeaters), len(req_var_binds))
         M = int(max_repetitions)
@@ -301,12 +324,7 @@ def main():
         if R:
             M = min(M, args.max_var_binds / R)
 
-        if N:
-            rsp_var_binds = read_next_vars(req_var_binds[:N])
-
-        else:
-            rsp_var_binds = []
-
+        rsp_var_binds = read_next_vars(req_var_binds[:N]) if N else []
         var_binds = req_var_binds[-R:]
 
         while M and R:
@@ -317,8 +335,8 @@ def main():
         return rsp_var_binds
 
     def commandResponderCbFun(
-            transport_dispatcher, transport_domain, transport_address,
-            whole_msg):
+                transport_dispatcher, transport_domain, transport_address,
+                whole_msg):
         """v2c arch command responder request handling callback"""
         while whole_msg:
             msg_ver = api.decodeMessageVersion(whole_msg)
@@ -327,7 +345,7 @@ def main():
                 p_mod = api.protoModules[msg_ver]
 
             else:
-                log.error('Unsupported SNMP version %s' % (msg_ver,))
+                log.error(f'Unsupported SNMP version {msg_ver}')
                 return
 
             req_msg, whole_msg = decoder.decode(whole_msg, asn1Spec=p_mod.Message())
@@ -374,9 +392,7 @@ def main():
                   req_pdu.isSameTypeWith(p_mod.GetBulkRequestPDU())):
 
                 if not msg_ver:
-                    log.info(
-                        'GETBULK over SNMPv1 from %s:%s' % (
-                            transport_domain, transport_address))
+                    log.info(f'GETBULK over SNMPv1 from {transport_domain}:{transport_address}')
                     return whole_msg
 
                 def backend_fun(var_binds):
@@ -400,7 +416,7 @@ def main():
                 return whole_msg
 
             except Exception as exc:
-                log.error('Ignoring SNMP engine failure: %s' % exc)
+                log.error(f'Ignoring SNMP engine failure: {exc}')
                 return whole_msg
 
             if not msg_ver:
@@ -520,7 +536,7 @@ if __name__ == '__main__':
         rc = 0
 
     except Exception as exc:
-        sys.stderr.write('process terminated: %s' % exc)
+        sys.stderr.write(f'process terminated: {exc}')
 
         for line in traceback.format_exception(*sys.exc_info()):
             sys.stderr.write(line.replace('\n', ';'))

@@ -47,45 +47,44 @@ class SnmprecRecordMixIn(object):
                 if 'dataValidation' in context:
                     return oid, tag, univ.Null
 
-                else:
-                    if context['setFlag']:
+                if context['setFlag']:
 
-                        hexvalue = self.grammar.hexify_value(
+                    hexvalue = self.grammar.hexify_value(
+                        context['origValue'])
+
+                    if hexvalue is not None:
+                        context['hexvalue'] = hexvalue
+                        context['hextag'] = self.grammar.get_tag_by_type(
                             context['origValue'])
+                        context['hextag'] += 'x'
 
-                        if hexvalue is not None:
-                            context['hexvalue'] = hexvalue
-                            context['hextag'] = self.grammar.get_tag_by_type(
-                                context['origValue'])
-                            context['hextag'] += 'x'
+                # prepare agent and record contexts on first reference
+                (variation_module,
+                 agent_contexts,
+                 record_contexts) = context['variationModules'][mod_name]
 
-                    # prepare agent and record contexts on first reference
-                    (variation_module,
-                     agent_contexts,
-                     record_contexts) = context['variationModules'][mod_name]
+                if context['dataFile'] not in agent_contexts:
+                    agent_contexts[context['dataFile']] = {}
 
-                    if context['dataFile'] not in agent_contexts:
-                        agent_contexts[context['dataFile']] = {}
+                if context['dataFile'] not in record_contexts:
+                    record_contexts[context['dataFile']] = {}
 
-                    if context['dataFile'] not in record_contexts:
-                        record_contexts[context['dataFile']] = {}
+                variation_module['agentContext'] = agent_contexts[context['dataFile']]
 
-                    variation_module['agentContext'] = agent_contexts[context['dataFile']]
+                record_contexts = record_contexts[context['dataFile']]
 
-                    record_contexts = record_contexts[context['dataFile']]
+                if oid not in record_contexts:
+                    record_contexts[oid] = {}
 
-                    if oid not in record_contexts:
-                        record_contexts[oid] = {}
+                variation_module['recordContext'] = record_contexts[oid]
 
-                    variation_module['recordContext'] = record_contexts[oid]
+                handler = variation_module['variate']
 
-                    handler = variation_module['variate']
+                # invoke variation module
+                oid, tag, value = handler(oid, tag, value, **context)
 
-                    # invoke variation module
-                    oid, tag, value = handler(oid, tag, value, **context)
-
-                    ReportingManager.update_metrics(
-                        variation=mod_name, variation_call_count=1, **context)
+                ReportingManager.update_metrics(
+                    variation=mod_name, variation_call_count=1, **context)
 
             else:
                 ReportingManager.update_metrics(
@@ -104,11 +103,13 @@ class SnmprecRecordMixIn(object):
                     not context['exactMatch'] or context['setFlag']):
                 return context['origOid'], tag, context['errorStatus']
 
-        if not hasattr(value, 'tagSet'):  # not already a pyasn1 object
-            return snmprec.SnmprecRecord.evaluate_value(
-                       self, oid, tag, value, **context)
-
-        return oid, tag, value
+        return (
+            (oid, tag, value)
+            if hasattr(value, 'tagSet')
+            else snmprec.SnmprecRecord.evaluate_value(
+                self, oid, tag, value, **context
+            )
+        )
 
     def evaluate(self, line, **context):
         oid, tag, value = self.grammar.parse(line)

@@ -41,19 +41,10 @@ class WalkGrammar(abstract.AbstractGrammar):
             return value
 
         except ValueError:
-            # Clean enumeration values
-            # .1.3.6.1.2.1.2.2.1.3.1 = INTEGER: ethernetCsmacd(6)
-            match = re.match(r'.*?\((\-?[0-9]+)\)', value)
-            if match:
-                return match.group(1)
+            if match := re.match(r'.*?\((\-?[0-9]+)\)', value):
+                return match[1]
 
-            # Clean values with UNIT suffix
-            # .1.3.6.1.2.1.4.13.0 = INTEGER: 60 seconds
-            match = re.match(r'(\-?[0-9]+)\s.+', value)
-            if match:
-                return match.group(1)
-
-            return value
+            return match[1] if (match := re.match(r'(\-?[0-9]+)\s.+', value)) else value
 
     # possible DISPLAY-HINTs parsing should occur here
     @staticmethod
@@ -81,23 +72,16 @@ class WalkGrammar(abstract.AbstractGrammar):
 
     @staticmethod
     def _bits_filter(value):
-        # rfc1902.Bits does not really initialize from sequences
-        # Clean bits values
-        # .1.3.6.1.2.1.17.6.1.1.1.0 = BITS: 5B 00 00 00   [[...]1 3 4 6 7
-        # .1.3.6.1.2.1.17.6.1.1.1.0 = BITS: 5B 00 00 00   clear(1)        
-        match = re.match(r'^([0-9a-fA-F]{2}(\s+[0-9a-fA-F]{2})*)', value)
-        if match:
-            return ints2octs([int(y, 16) for y in match.group(1).split(' ')])
+        if match := re.match(r'^([0-9a-fA-F]{2}(\s+[0-9a-fA-F]{2})*)', value):
+            return ints2octs([int(y, 16) for y in match[1].split(' ')])
 
         return ints2octs([int(y, 16) for y in value.split(' ')])
 
     @staticmethod
     def _hex_string_filter(value):
-        # .1.3.6.1.2.1.3.1.1.2.2.1.172.30.1.30 = Hex-STRING: 00 C0 FF 43 CE 45   [...C.E]
-        match = re.match(r'^([0-9a-fA-F]{2}(\s+[0-9a-fA-F]{2})*)\s+\[', value)
-        if match:
-            return [int(y, 16) for y in match.group(1).split(' ')]
-        
+        if match := re.match(r'^([0-9a-fA-F]{2}(\s+[0-9a-fA-F]{2})*)\s+\[', value):
+            return [int(y, 16) for y in match[1].split(' ')]
+
         return [int(y, 16) for y in value.split(' ')]
 
     @staticmethod
@@ -107,13 +91,7 @@ class WalkGrammar(abstract.AbstractGrammar):
             return value
 
         except ValueError:
-            # Clean values with UNIT suffix
-            # .1.3.6.1.2.1.4.31.1.1.47.1 = Gauge32: 10000 milli-seconds
-            match = re.match(r'(\-?[0-9]+)\s.+', value)
-            if match:
-                return match.group(1)
-
-            return value
+            return match[1] if (match := re.match(r'(\-?[0-9]+)\s.+', value)) else value
 
     @staticmethod
     def _net_address_filter(value):
@@ -121,11 +99,7 @@ class WalkGrammar(abstract.AbstractGrammar):
 
     @staticmethod
     def _time_ticks_filter(value):
-        match = re.match(r'.*?\(([0-9]+)\)', value)
-        if match:
-            return match.group(1)
-
-        return value
+        return match[1] if (match := re.match(r'.*?\(([0-9]+)\)', value)) else value
 
     def parse(self, line):
 
@@ -147,7 +121,7 @@ class WalkGrammar(abstract.AbstractGrammar):
             oid, value = octs2str(line).strip().split(' = ', 1)
 
         except Exception:
-            raise error.SnmpsimError('broken record <%s>' % line)
+            raise error.SnmpsimError(f'broken record <{line}>')
 
         if oid and oid[0] == '.':
             oid = oid[1:]
@@ -158,13 +132,11 @@ class WalkGrammar(abstract.AbstractGrammar):
         if value.startswith('No more variables left in this MIB View'):
             value = 'STRING: '
 
-        match = re.match(r'^(\w+(?:[\-\ ]\w+)?:)\ ?(.*)', value)
-        if match:
-            tag = match.group(1)
-            value = match.group(2)
+        if match := re.match(r'^(\w+(?:[\-\ ]\w+)?:)\ ?(.*)', value):
+            tag = match[1]
+            value = match[2]
 
-        # this is implicit snmpwalk's fuzziness
-        elif value == '""' or value == 'STRING:':
+        elif value in ['""', 'STRING:']:
             tag = 'STRING:'
             value = ''
 
@@ -184,4 +156,4 @@ class WalkGrammar(abstract.AbstractGrammar):
 
             return oid, tag.upper(), handler(value.strip())
 
-        raise error.SnmpsimError('broken record <%s>' % line)
+        raise error.SnmpsimError(f'broken record <{line}>')

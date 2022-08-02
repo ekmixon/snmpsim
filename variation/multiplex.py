@@ -156,28 +156,29 @@ def variate(oid, tag, value, **context):
         moduleContext[oid] = {}
 
     if context['setFlag']:
-        if 'control' in (
-                recordContext['settings'] and
-                recordContext['settings']['control'] == context['origOid']):
-
-            fileno = int(context['origValue'])
-            if fileno >= len(recordContext['keys']):
-                log.info('multiplex: .snmprec file number %s over limit of'
-                        ' %s' % (fileno, len(recordContext['keys'])))
-
-                return context['origOid'], tag, context['errorStatus']
-
-            moduleContext[oid]['fileno'] = fileno
-
-            log.info(
-                'multiplex: switched to file #%s '
-                '(%s)' % (recordContext['keys'][fileno],
-                          recordContext['dirmap'][recordContext['keys'][fileno]]))
-
-            return context['origOid'], tag, context['origValue']
-
-        else:
+        if 'control' not in (
+            (
+                recordContext['settings']
+                and recordContext['settings']['control'] == context['origOid']
+            )
+        ):
             return context['origOid'], tag, context['errorStatus']
+
+        fileno = int(context['origValue'])
+        if fileno >= len(recordContext['keys']):
+            log.info('multiplex: .snmprec file number %s over limit of'
+                    ' %s' % (fileno, len(recordContext['keys'])))
+
+            return context['origOid'], tag, context['errorStatus']
+
+        moduleContext[oid]['fileno'] = fileno
+
+        log.info(
+            'multiplex: switched to file #%s '
+            '(%s)' % (recordContext['keys'][fileno],
+                      recordContext['dirmap'][recordContext['keys'][fileno]]))
+
+        return context['origOid'], tag, context['origValue']
 
     if 'control' in recordContext['settings']:
         if 'fileno' not in moduleContext[oid]:
@@ -228,8 +229,10 @@ def variate(oid, tag, value, **context):
 
     text, db = moduleContext[oid]['datafileobj'].get_handles()
 
-    textOid = str(rfc1902.OctetString(
-        '.'.join(['%s' % x for x in context['origOid']])))
+    textOid = str(
+        rfc1902.OctetString('.'.join([f'{x}' for x in context['origOid']]))
+    )
+
 
     try:
         line = moduleContext[oid]['datafileobj'].lookup(textOid)
@@ -250,9 +253,8 @@ def variate(oid, tag, value, **context):
         if exactMatch:
             line, _, _ = get_record(text)
 
-    else:
-        if not exactMatch:
-            return context['origOid'], tag, context['errorStatus']
+    elif not exactMatch:
+        return context['origOid'], tag, context['errorStatus']
 
     if not line:
         return context['origOid'], tag, context['errorStatus']
@@ -281,20 +283,22 @@ def record(oid, tag, value, **context):
         else:
             moduleContext['filenum'] = 0
 
-        if 'iterations' in moduleContext and moduleContext['iterations']:
-            log.info('multiplex: %s iterations '
-                    'remaining' % moduleContext['iterations'])
-
-            moduleContext['started'] = time.time()
-            moduleContext['iterations'] -= 1
-            moduleContext['filenum'] += 1
-
-            wait = max(0, moduleContext['period'] - (time.time() - moduleContext['started']))
-
-            raise error.MoreDataNotification(period=wait)
-
-        else:
+        if (
+            'iterations' not in moduleContext
+            or not moduleContext['iterations']
+        ):
             raise error.NoDataNotification()
+
+        log.info('multiplex: %s iterations '
+                'remaining' % moduleContext['iterations'])
+
+        moduleContext['started'] = time.time()
+        moduleContext['iterations'] -= 1
+        moduleContext['filenum'] += 1
+
+        wait = max(0, moduleContext['period'] - (time.time() - moduleContext['started']))
+
+        raise error.MoreDataNotification(period=wait)
 
     if 'file' not in moduleContext:
         if 'filenum' not in moduleContext:
@@ -312,32 +316,28 @@ def record(oid, tag, value, **context):
         moduleContext['parser'] = RECORD_SET[dstRecordType]
         moduleContext['file'] = moduleContext['parser'].open(snmprecfile, 'wb')
 
-        log.info('multiplex: writing into %s file...' % snmprecfile)
+        log.info(f'multiplex: writing into {snmprecfile} file...')
 
     record = moduleContext['parser'].format(
         context['origOid'], context['origValue'])
 
     moduleContext['file'].write(record)
 
-    if not context['total']:
-        settings = {
-            'dir': moduleContext['dir'].replace(os.path.sep, '/')
-        }
-
-        if 'period' in moduleContext:
-            settings['period'] = '%.2f' % float(moduleContext['period'])
-
-        if 'addon' in moduleContext:
-            settings.update(
-                dict([split(x, '=') for x in moduleContext['addon']])
-            )
-
-        value = ','.join(['%s=%s' % (k, v) for k, v in settings.items()])
-
-        return str(context['startOID']), ':multiplex', value
-
-    else:
+    if context['total']:
         raise error.NoDataNotification()
+    settings = {
+        'dir': moduleContext['dir'].replace(os.path.sep, '/')
+    }
+
+    if 'period' in moduleContext:
+        settings['period'] = '%.2f' % float(moduleContext['period'])
+
+    if 'addon' in moduleContext:
+        settings |= dict([split(x, '=') for x in moduleContext['addon']])
+
+    value = ','.join([f'{k}={v}' for k, v in settings.items()])
+
+    return str(context['startOID']), ':multiplex', value
 
 
 def shutdown(**context):

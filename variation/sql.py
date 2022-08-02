@@ -29,9 +29,10 @@ def init(**context):
     options = {}
 
     if context['options']:
-        options.update(
-            dict([split(x, ':')
-                  for x in split(context['options'], ',')]))
+        options |= dict(
+            [split(x, ':') for x in split(context['options'], ',')]
+        )
+
 
     if 'dbtype' not in options:
         raise error.SnmpsimError('database type not specified')
@@ -81,7 +82,7 @@ def init(**context):
         except Exception:  # non-ANSI database
 
             try:
-                cursor.execute('select * from %s limit 1' % dbTable)
+                cursor.execute(f'select * from {dbTable} limit 1')
 
             except Exception:
                 createTable = True
@@ -146,9 +147,7 @@ def variate(oid, tag, value, **context):
             ' limit 1' % (db_table, sql_oid)
         )
 
-        resultset = cursor.fetchone()
-
-        if resultset:
+        if resultset := cursor.fetchone():
             maxaccess = resultset[0]
             if maxaccess != 'read-write':
                 return orig_oid, tag, context['errorStatus']
@@ -249,8 +248,7 @@ def record(oid, tag, value, **context):
 
 
 def shutdown(**context):
-    db_conn = moduleContext.get('dbConn')
-    if db_conn:
+    if db_conn := moduleContext.get('dbConn'):
         if 'mode' in context and context['mode'] == 'recording':
             db_conn.commit()
 

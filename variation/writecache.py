@@ -130,18 +130,21 @@ def variate(oid, tag, value, **context):
         else:
             return context['origOid'], tag, context['errorStatus']
 
-    if 'status' in recordContext['settings']:
+    if 'status' in recordContext['settings'] and (
+        (
+            'op' not in recordContext['settings']
+            or recordContext['settings']['op'] == 'any'
+            or recordContext['settings']['op'] == 'set'
+            and context['setFlag']
+            or recordContext['settings']['op'] == 'get'
+            and not context['setFlag']
+        )
+    ):
+        e = recordContext['settings']['status']
 
-        if ('op' not in recordContext['settings'] or
-                recordContext['settings']['op'] == 'any' or
-                recordContext['settings']['op'] == 'set' and context['setFlag'] or
-                recordContext['settings']['op'] == 'get' and not context['setFlag']):
-
-            e = recordContext['settings']['status']
-
-            if e in ERROR_TYPES:
-                idx = max(0, context['varsTotal'] - context['varsRemaining'] - 1)
-                raise ERROR_TYPES[e](name=oid, idx=idx)
+        if e in ERROR_TYPES:
+            idx = max(0, context['varsTotal'] - context['varsRemaining'] - 1)
+            raise ERROR_TYPES[e](name=oid, idx=idx)
 
     if text_oid in moduleContext['cache']:
         return oid, tag, moduleContext['cache'][text_oid]

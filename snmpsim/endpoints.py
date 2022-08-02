@@ -40,7 +40,7 @@ class IPv4TransportEndpoints(TransportEndpointsBase):
             h, p = f(*addr.split(':'))
 
         except Exception:
-            raise SnmpsimError('improper IPv4/UDP endpoint %s' % addr)
+            raise SnmpsimError(f'improper IPv4/UDP endpoint {addr}')
 
         return udp.UdpTransport().openServerMode((h, p)), addr
 
@@ -57,7 +57,7 @@ class IPv6TransportEndpoints(TransportEndpointsBase):
                 h, p = h[1:], int(p)
 
             except Exception:
-                raise SnmpsimError('improper IPv6/UDP endpoint %s' % addr)
+                raise SnmpsimError(f'improper IPv6/UDP endpoint {addr}')
 
         elif addr[0] == '[' and addr[-1] == ']':
             h, p = addr[1:-1], 161
@@ -84,8 +84,7 @@ def parse_endpoint(arg, ipv6=False):
             port = 161
 
     except Exception as exc:
-        raise SnmpsimError(
-            'Malformed network endpoint address %s: %s' % (arg, exc))
+        raise SnmpsimError(f'Malformed network endpoint address {arg}: {exc}')
 
     try:
         address, port = socket.getaddrinfo(
@@ -95,8 +94,7 @@ def parse_endpoint(arg, ipv6=False):
             socket.IPPROTO_UDP)[0][4][:2]
 
     except socket.gaierror as exc:
-        raise SnmpsimError(
-            'Unknown hostname %s: %s' % (address, exc))
+        raise SnmpsimError(f'Unknown hostname {address}: {exc}')
 
     return address, port
 

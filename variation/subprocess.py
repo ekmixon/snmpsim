@@ -57,8 +57,7 @@ def variate(oid, tag, value, **context):
         context_name = str(context['contextName'])
 
     args = [
-        (x
-        .replace('@TRANSPORTDOMAIN@', transport_domain)
+        x.replace('@TRANSPORTDOMAIN@', transport_domain)
         .replace('@TRANSPORTADDRESS@', transport_address)
         .replace('@SECURITYMODEL@', security_model)
         .replace('@SECURITYNAME@', security_name)
@@ -68,12 +67,14 @@ def variate(oid, tag, value, **context):
         .replace('@OID@', str(oid))
         .replace('@TAG@', tag)
         .replace('@ORIGOID@', str(context['origOid']))
-        .replace('@ORIGTAG@', str(sum([x for x in context['origValue'].tagSet[0]])))
+        .replace('@ORIGTAG@', str(sum(list(context['origValue'].tagSet[0]))))
         .replace('@ORIGVALUE@', str(context['origValue']))
         .replace('@SETFLAG@', str(int(context['setFlag'])))
         .replace('@NEXTFLAG@', str(int(context['nextFlag'])))
-        .replace('@SUBTREEFLAG@', str(int(context['subtreeFlag']))))
-        for x in split(value, ' ')]
+        .replace('@SUBTREEFLAG@', str(int(context['subtreeFlag'])))
+        for x in split(value, ' ')
+    ]
+
 
     log.info('subprocess: executing external process "%s"' % ' '.join(args))
 

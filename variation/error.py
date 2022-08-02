@@ -82,7 +82,7 @@ def variate(oid, tag, value, **context):
                     vlist[o] = v, e
 
                 else:
-                    log.info('error: bad vlist syntax: %s' % recordContext['settings']['vlist'])
+                    log.info(f"error: bad vlist syntax: {recordContext['settings']['vlist']}")
 
             recordContext['settings']['vlist'] = vlist
 
@@ -106,13 +106,14 @@ def variate(oid, tag, value, **context):
             if 'status' in recordContext['settings']:
                 e = recordContext['settings']['status']
 
-    else:
-        if recordContext['settings']['op'] in ('get', 'any'):
-            if 'status' in recordContext['settings']:
-                e = recordContext['settings']['status']
+    elif (
+        recordContext['settings']['op'] in ('get', 'any')
+        and 'status' in recordContext['settings']
+    ):
+        e = recordContext['settings']['status']
 
     if e and e in ERROR_TYPES:
-        log.info('error: reporting %s for %s' % (e, oid))
+        log.info(f'error: reporting {e} for {oid}')
         raise ERROR_TYPES[e](
             name=oid, idx=max(0, context['varsTotal'] - context['varsRemaining'] - 1))
 

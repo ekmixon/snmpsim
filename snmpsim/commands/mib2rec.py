@@ -59,7 +59,7 @@ def _parse_range(arg):
         minimum, maximum = [int(x) for x in arg.split(',')]
 
     except Exception as exc:
-        raise SnmpsimError('Malformed integer range %s: %s' % (arg, exc))
+        raise SnmpsimError(f'Malformed integer range {arg}: {exc}')
 
     return minimum, maximum
 
@@ -429,11 +429,10 @@ def main():
                     suffix = suffix + node.getAsName(
                         row_indices[idxNode.name], implied_flag)
 
-                if not row_indices:
-                    if not args.quiet:
-                        sys.stderr.write(
-                            '# WARNING: %s::%s table has no index!\r\n' % (
-                                mib_name, sym_name))
+                if not row_indices and not args.quiet:
+                    sys.stderr.write(
+                        '# WARNING: %s::%s table has no index!\r\n' % (
+                            mib_name, sym_name))
 
                 if row_oid is None:
                     this_table_size = 0
@@ -511,7 +510,7 @@ if __name__ == '__main__':
         rc = 0
 
     except Exception as exc:
-        sys.stderr.write('process terminated: %s' % exc)
+        sys.stderr.write(f'process terminated: {exc}')
 
         for line in traceback.format_exception(*sys.exc_info()):
             sys.stderr.write(line.replace('\n', ';'))

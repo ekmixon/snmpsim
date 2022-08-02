@@ -113,15 +113,13 @@ class SnmprecRecord(dump.DumpRecord):
         text_tag = self.grammar.get_tag_by_type(value)
 
         if hexvalue:
-            text_tag, text_value = text_tag + 'x', hexvalue
+            text_tag, text_value = f'{text_tag}x', hexvalue
 
         else:
             try:
                 text_value = repr(value.asOctets())
 
-                if text_value.startswith('b'):
-                    text_value = text_value[1:]
-
+                text_value = text_value.removeprefix('b')
                 text_value = text_value[1:-1]
 
                 if '\\' in text_value:

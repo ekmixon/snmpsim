@@ -26,13 +26,13 @@ from snmpsim.utils import split
 
 BOOTED = time.time()
 
-INTEGER_TYPES = set(
-    (rfc1902.Counter32.tagSet,
-     rfc1902.Counter64.tagSet,
-     rfc1902.TimeTicks.tagSet,
-     rfc1902.Gauge32.tagSet,
-     rfc1902.Integer.tagSet)
-)
+INTEGER_TYPES = {
+    rfc1902.Counter32.tagSet,
+    rfc1902.Counter64.tagSet,
+    rfc1902.TimeTicks.tagSet,
+    rfc1902.Gauge32.tagSet,
+    rfc1902.Integer.tagSet,
+}
 
 
 def init(**context):
@@ -120,12 +120,7 @@ def variate(oid, tag, value, **context):
 
     tnow = time.time()
 
-    if 'atime' in recordContext['settings']:
-        t = tnow
-
-    else:
-        t = tnow - BOOTED
-
+    t = tnow if 'atime' in recordContext['settings'] else tnow - BOOTED
     f, args = recordContext['settings']['function']
 
     _args = []
@@ -154,8 +149,7 @@ def variate(oid, tag, value, **context):
         else:
             v += recordContext['settings']['offset']
 
-    deviation = recordContext['settings'].get('deviation')
-    if deviation:
+    if deviation := recordContext['settings'].get('deviation'):
         v += random.randrange(-deviation, deviation)
 
     if 'cumulative' in recordContext['settings']:
@@ -205,7 +199,7 @@ def record(oid, tag, value, **context):
                 tag not in moduleContext['settings']['taglist']):
             return oid, tag, value
 
-        value = 'initial=%s' % value
+        value = f'initial={value}'
 
         if context['origValue'].tagSet == rfc1902.TimeTicks.tagSet:
             value += ',rate=100'
@@ -213,7 +207,7 @@ def record(oid, tag, value, **context):
         elif context['origValue'].tagSet == rfc1902.Integer.tagSet:
             value += ',rate=0'
 
-        return oid, tag + ':numeric', value
+        return oid, f'{tag}:numeric', value
 
     # multiple-iteration recording
 
@@ -229,9 +223,10 @@ def record(oid, tag, value, **context):
             settings['rate'] = 0  # may be constants
 
         if 'addon' in moduleContext['settings']:
-            settings.update(
-                dict([split(x, '=')
-                      for x in moduleContext['settings']['addon']]))
+            settings |= dict(
+                [split(x, '=') for x in moduleContext['settings']['addon']]
+            )
+
 
         moduleContext[oid] = {}
 
@@ -265,32 +260,31 @@ def record(oid, tag, value, **context):
         if context['stopFlag']:
             raise error.NoDataNotification()
 
-        if 'value' in moduleContext[oid]:
-            if context['origValue'].tagSet not in INTEGER_TYPES:
-                if 'hextag' in moduleContext[oid]:
-                    tag = moduleContext[oid]['hextag']
+        if 'value' not in moduleContext[oid]:
+            raise error.NoDataNotification()
+        if context['origValue'].tagSet not in INTEGER_TYPES:
+            if 'hextag' in moduleContext[oid]:
+                tag = moduleContext[oid]['hextag']
 
-                if 'hexvalue' in moduleContext[oid]:
-                    value = moduleContext[oid]['hexvalue']
-
-                return oid, tag, value
-
-            if tag not in moduleContext['settings']['taglist']:
-                return oid, tag, moduleContext[oid]['value']
-
-            diff = int(context['origValue']) - int(moduleContext[oid]['value'])
-            runtime = time.time() - moduleContext[oid]['time']
-            moduleContext[oid]['settings']['rate'] = diff / runtime
-
-            tag += ':numeric'
-            value = ','.join(
-                ['%s=%s' % (k, v)
-                 for k, v in moduleContext[oid]['settings'].items()])
+            if 'hexvalue' in moduleContext[oid]:
+                value = moduleContext[oid]['hexvalue']
 
             return oid, tag, value
 
-        else:
-            raise error.NoDataNotification()
+        if tag not in moduleContext['settings']['taglist']:
+            return oid, tag, moduleContext[oid]['value']
+
+        diff = int(context['origValue']) - int(moduleContext[oid]['value'])
+        runtime = time.time() - moduleContext[oid]['time']
+        moduleContext[oid]['settings']['rate'] = diff / runtime
+
+        tag += ':numeric'
+        value = ','.join(
+            [f'{k}={v}' for k, v in moduleContext[oid]['settings'].items()]
+        )
+
+
+        return oid, tag, value
 
 
 def shutdown(**context):

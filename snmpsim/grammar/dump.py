@@ -52,12 +52,11 @@ class DumpGrammar(abstract.AbstractGrammar):
             oid, tag, value = octs2str(line).split('|', 2)
 
         except Exception as exc:
-            raise error.SnmpsimError(
-                'broken record <%s>: %s' % (line, exc))
+            raise error.SnmpsimError(f'broken record <{line}>: {exc}')
 
         else:
             if oid and tag:
                 handler = filters.get(tag, lambda x: x)
                 return oid, tag, handler(value.strip())
 
-            raise error.SnmpsimError('broken record <%s>' % line)
+            raise error.SnmpsimError(f'broken record <{line}>')

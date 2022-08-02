@@ -60,31 +60,29 @@ def _cbFun(sendRequestHandle, errorIndication, errorStatus,
 
 def variate(oid, tag, value, **context):
 
-    if 'snmpEngine' in context and context['snmpEngine']:
-
-        snmpEngine = context['snmpEngine']
-
-        if snmpEngine not in moduleContext:
-            moduleContext[snmpEngine] = {}
-
-        if context['transportDomain'] not in moduleContext[snmpEngine]:
-            # register this SNMP Engine to handle our transports'
-            # receiver IDs (which we build by outbound and simulator
-            # transportDomains concatenation)
-            snmpEngine.registerTransportDispatcher(
-                snmpEngine.transportDispatcher,
-                UdpTransportTarget.transportDomain + context['transportDomain'])
-
-            snmpEngine.registerTransportDispatcher(
-                snmpEngine.transportDispatcher,
-                Udp6TransportTarget.transportDomain + context['transportDomain'])
-
-            moduleContext[snmpEngine][context['transportDomain']] = 1
-
-    else:
+    if 'snmpEngine' not in context or not context['snmpEngine']:
         raise error.SnmpsimError(
             'Variation module is not given snmpEngine. '
             'Make sure you are not running in --v2c-arch mode')
+
+    snmpEngine = context['snmpEngine']
+
+    if snmpEngine not in moduleContext:
+        moduleContext[snmpEngine] = {}
+
+    if context['transportDomain'] not in moduleContext[snmpEngine]:
+        # register this SNMP Engine to handle our transports'
+        # receiver IDs (which we build by outbound and simulator
+        # transportDomains concatenation)
+        snmpEngine.registerTransportDispatcher(
+            snmpEngine.transportDispatcher,
+            UdpTransportTarget.transportDomain + context['transportDomain'])
+
+        snmpEngine.registerTransportDispatcher(
+            snmpEngine.transportDispatcher,
+            Udp6TransportTarget.transportDomain + context['transportDomain'])
+
+        moduleContext[snmpEngine][context['transportDomain']] = 1
 
     if not context['nextFlag'] and not context['exactMatch']:
         return context['origOid'], tag, context['errorStatus']
@@ -145,11 +143,10 @@ def variate(oid, tag, value, **context):
                 context['origValue'] < args['vlist']['lt']):
             pass
 
-        elif ('gt' in args['vlist'] and
-                context['origValue'] > args['vlist']['gt']):
-            pass
-
-        else:
+        elif (
+            'gt' not in args['vlist']
+            or context['origValue'] <= args['vlist']['gt']
+        ):
             return oid, tag, context['origValue']
 
     if args['op'] not in ('get', 'set', 'any', '*'):
@@ -201,7 +198,7 @@ def variate(oid, tag, value, **context):
                 privProtocol=privProtocol)
 
         else:
-            log.info('notification: unknown SNMP version %s' % args['version'])
+            log.info(f"notification: unknown SNMP version {args['version']}")
             return context['origOid'], tag, context['errorStatus']
 
         if 'host' not in args:
@@ -216,7 +213,7 @@ def variate(oid, tag, value, **context):
             target = Udp6TransportTarget((args['host'], int(args['port'])))
 
         else:
-            log.info('notification: unknown transport %s' % args['proto'])
+            log.info(f"notification: unknown transport {args['proto']}")
             return context['origOid'], tag, context['errorStatus']
 
         localAddress = None
@@ -238,7 +235,7 @@ def variate(oid, tag, value, **context):
                     localAddress = args['bindaddr']
 
         if localAddress:
-            log.info('notification: binding to local address %s' % localAddress)
+            log.info(f'notification: binding to local address {localAddress}')
             target.setLocalAddress((localAddress, 0))
 
         # this will make target objects different based on their bind address 

@@ -59,12 +59,7 @@ def ensure_base_types(f):
             k = to_base_types(k)
             k = camel2snake(k)
 
-            if isinstance(v, dict):
-                v = to_dct(v)
-
-            else:
-                v = to_base_types(v)
-
+            v = to_dct(v) if isinstance(v, dict) else to_base_types(v)
             items[k] = v
 
         return items
@@ -109,8 +104,7 @@ class BaseJsonReporter(base.BaseReporter):
                 self.REPORTING_PERIOD = int(args[1])
 
             except Exception as exc:
-                raise error.SnmpsimError(
-                    'Malformed reports dumping period: %s' % args[1])
+                raise error.SnmpsimError(f'Malformed reports dumping period: {args[1]}')
 
         try:
             if not os.path.exists(self._reports_dir):
@@ -149,9 +143,9 @@ class BaseJsonReporter(base.BaseReporter):
         self._metrics['version'] = self.REPORTING_VERSION
         self._metrics['producer'] = self.PRODUCER_UUID
 
-        dump_path = os.path.join(self._reports_dir, '%s.json' % now)
+        dump_path = os.path.join(self._reports_dir, f'{now}.json')
 
-        log.debug('Dumping JSON metrics to %s' % dump_path)
+        log.debug(f'Dumping JSON metrics to {dump_path}')
 
         try:
             json_doc = json.dumps(self._metrics, indent=2)

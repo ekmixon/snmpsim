@@ -44,7 +44,7 @@ else:
                 os._exit(0)
 
         except OSError as exc:
-            raise error.SnmpsimError('ERROR: fork #1 failed: %s' % exc)
+            raise error.SnmpsimError(f'ERROR: fork #1 failed: {exc}')
 
         # decouple from parent environment
         try:
@@ -64,7 +64,7 @@ else:
                 os._exit(0)
 
         except OSError as exc:
-            raise error.SnmpsimError('ERROR: fork #2 failed: %s' % exc)
+            raise error.SnmpsimError(f'ERROR: fork #2 failed: {exc}')
 
         def signal_cb(s, f):
             raise KeyboardInterrupt
@@ -91,8 +91,7 @@ else:
                 os.rename(nm, pidfile)
 
         except Exception as exc:
-            raise error.SnmpsimError(
-                'Failed to create PID file %s: %s' % (pidfile, exc))
+            raise error.SnmpsimError(f'Failed to create PID file {pidfile}: {exc}')
 
         # redirect standard file descriptors
         sys.stdout.flush()
@@ -116,27 +115,26 @@ else:
             self._olduid = self._oldgid = None
 
         def __enter__(self):
-            if os.getuid() != 0:
-                if self._uname or self._gname:
-                    try:
-                        pw_name = pwd.getpwnam(self._uname).pw_name
-                        gr_name = grp.getgrnam(self._gname).gr_name
-
-                    except Exception as exc:
-                        raise error.SnmpsimError(
-                            'getpwnam()/getgrnam() failed for %s/%s: '
-                            '%s' % (self._uname, self._gname, exc))
-
-                    if self._uname != pw_name or self._gname != gr_name:
-                        raise error.SnmpsimError(
-                            'Process is running under different UID/GID')
-                else:
-                    return
-
-            else:
+            if os.getuid() == 0:
                 if not self._uname or not self._gname:
                     raise error.SnmpsimError(
                         'Must drop privileges to a non-privileged user&group')
+
+            elif self._uname or self._gname:
+                try:
+                    pw_name = pwd.getpwnam(self._uname).pw_name
+                    gr_name = grp.getgrnam(self._gname).gr_name
+
+                except Exception as exc:
+                    raise error.SnmpsimError(
+                        'getpwnam()/getgrnam() failed for %s/%s: '
+                        '%s' % (self._uname, self._gname, exc))
+
+                if self._uname != pw_name or self._gname != gr_name:
+                    raise error.SnmpsimError(
+                        'Process is running under different UID/GID')
+            else:
+                return
 
             try:
                 runningUid = pwd.getpwnam(self._uname).pw_uid
@@ -151,7 +149,7 @@ else:
                 os.setgroups([])
 
             except Exception as exc:
-                raise error.SnmpsimError('setgroups() failed: %s' % exc)
+                raise error.SnmpsimError(f'setgroups() failed: {exc}')
 
             try:
                 if self._final:
@@ -167,9 +165,9 @@ else:
 
             except Exception as exc:
                 raise error.SnmpsimError(
-                    '%s failed for %s/%s: %s' % (
-                        self._final and 'setgid()/setuid()' or 'setegid()/seteuid()',
-                        runningGid, runningUid, exc))
+                    f"{self._final and 'setgid()/setuid()' or 'setegid()/seteuid()'} failed for {runningGid}/{runningUid}: {exc}"
+                )
+
 
             os.umask(63)  # 0077
 
@@ -183,5 +181,5 @@ else:
 
             except Exception as exc:
                 raise error.SnmpsimError(
-                    'setegid()/seteuid() failed for %s/%s: %s' % (
-                        self._oldgid, self._olduid, exc))
+                    f'setegid()/seteuid() failed for {self._oldgid}/{self._olduid}: {exc}'
+                )

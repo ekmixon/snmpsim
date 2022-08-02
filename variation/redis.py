@@ -38,9 +38,10 @@ def init(**context):
     options = {}
 
     if context['options']:
-        options.update(
-            dict([utils.split(x, ':')
-                  for x in utils.split(context['options'], ',')]))
+        options |= dict(
+            [utils.split(x, ':') for x in utils.split(context['options'], ',')]
+        )
+
 
     connectOpts = 'host', 'port', 'password', 'db', 'unix_socket'
 
@@ -66,7 +67,7 @@ def init(**context):
         else:
             moduleContext['key-spaces-id'] = random.randrange(0, 0xffffffff)
 
-        log.info('redis: using key-spaces-id %s' % moduleContext['key-spaces-id'])
+        log.info(f"redis: using key-spaces-id {moduleContext['key-spaces-id']}")
 
         if 'iterations' in options:
             moduleContext['iterations'] = max(0, int(options['iterations']) - 1)
@@ -77,9 +78,8 @@ def init(**context):
         else:
             moduleContext['period'] = 60.0
 
-        redisScript = options.get('evalsha')
-        if redisScript:
-            log.info('redis: using server-side script %s' % redisScript)
+        if redisScript := options.get('evalsha'):
+            log.info(f'redis: using server-side script {redisScript}')
 
     elif context['mode'] == 'variating':
         moduleContext['booted'] = time.time()
@@ -136,11 +136,12 @@ def variate(oid, tag, value, **context):
 
         settings['period'] = float(settings.get('period', 60))
 
-        if 'evalsha' in settings:
-            if not dbConn.script_exists(settings['evalsha']):
-                log.info('redis: lua script %s does not exist '
-                        'at Redis' % settings['evalsha'])
-                return context['origOid'], tag, context['errorStatus']
+        if 'evalsha' in settings and not dbConn.script_exists(
+            settings['evalsha']
+        ):
+            log.info('redis: lua script %s does not exist '
+                    'at Redis' % settings['evalsha'])
+            return context['origOid'], tag, context['errorStatus']
 
         recordContext['ready'] = True
 
@@ -184,10 +185,10 @@ def variate(oid, tag, value, **context):
             textValue = str(context['origValue'])
 
         if redisScript:
-            prevTagAndValue = evalsha(dbConn, redisScript, 1, keySpace + '-' + dbOid)
+            prevTagAndValue = evalsha(dbConn, redisScript, 1, f'{keySpace}-{dbOid}')
 
         else:
-            prevTagAndValue = get(dbConn, keySpace + '-' + dbOid)
+            prevTagAndValue = get(dbConn, f'{keySpace}-{dbOid}')
 
         if prevTagAndValue:
             prevTag, prevValue = prevTagAndValue.split('|')
@@ -198,23 +199,36 @@ def variate(oid, tag, value, **context):
 
         else:
             dbConn.linsert(
-                keySpace + '-oids_ordering', 'after',
-                getNextOid(dbConn, keySpace, dbOid), dbOid)
+                f'{keySpace}-oids_ordering',
+                'after',
+                getNextOid(dbConn, keySpace, dbOid),
+                dbOid,
+            )
+
 
         if redisScript:
-            evalsha(dbConn, redisScript, 1, keySpace + '-' + dbOid,
-                           textTag + '|' + textValue)
+            evalsha(
+                dbConn,
+                redisScript,
+                1,
+                f'{keySpace}-{dbOid}',
+                f'{textTag}|{textValue}',
+            )
+
 
         else:
-            dbConn.set(keySpace + '-' + dbOid, textTag + '|' + textValue)
+            dbConn.set(f'{keySpace}-{dbOid}', f'{textTag}|{textValue}')
 
         return origOid, textTag, context['origValue']
 
     else:
         if context['nextFlag']:
             textOid = lindex(
-                dbConn, keySpace + '-oids_ordering',
-                getNextOid(dbConn, keySpace, dbOid, index=True))
+                dbConn,
+                f'{keySpace}-oids_ordering',
+                getNextOid(dbConn, keySpace, dbOid, index=True),
+            )
+
 
         else:
             textOid = keySpace + '-' + dbOid
@@ -236,8 +250,8 @@ def variate(oid, tag, value, **context):
 
 
 def getNextOid(dbConn, keySpace, dbOid, index=False):
-    listKey = keySpace + '-oids_ordering'
-    oidKey = keySpace + '-' + dbOid
+    listKey = f'{keySpace}-oids_ordering'
+    oidKey = f'{keySpace}-{dbOid}'
 
     maxlen = listsize = dbConn.llen(listKey)
     minlen = 0
@@ -260,7 +274,7 @@ def getNextOid(dbConn, keySpace, dbOid, index=False):
             break
 
     if not listsize:
-        raise error.SnmpsimError('empty/unsorted %s' % listKey)
+        raise error.SnmpsimError(f'empty/unsorted {listKey}')
 
     return not index and lindex(dbConn, listKey, idx) or idx
 

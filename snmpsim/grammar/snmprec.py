@@ -44,21 +44,20 @@ class SnmprecGrammar(AbstractGrammar):
         if oid and tag:
             return str2octs('%s|%s|%s\n' % (oid, tag, val))
 
-        raise error.SnmpsimError('empty OID/tag <%s/%s>' % (oid, tag))
+        raise error.SnmpsimError(f'empty OID/tag <{oid}/{tag}>')
 
     def parse(self, line):
         try:
             oid, tag, value = octs2str(line).strip().split('|', 2)
 
         except Exception as exc:
-            raise error.SnmpsimError(
-                'broken record <%s>: %s' % (line, exc))
+            raise error.SnmpsimError(f'broken record <{line}>: {exc}')
 
         else:
             if oid and tag:
                 return oid, tag, value
 
-            raise error.SnmpsimError('broken record <%s>' % line)
+            raise error.SnmpsimError(f'broken record <{line}>')
 
     # helper functions
 
@@ -67,7 +66,7 @@ class SnmprecGrammar(AbstractGrammar):
             if typ.tagSet[0] == value.tagSet[0]:
                 return tag
 
-        raise Exception('error: unknown type of %s' % (value,))
+        raise Exception(f'error: unknown type of {value}')
 
     def hexify_value(self, value):
         if value.tagSet in (univ.OctetString.tagSet,

@@ -152,7 +152,7 @@ def variate(oid, tag, value, **context):
         delay = 0
 
     elif delay > 99999:
-        log.info('delay: dropping response for %s' % oid)
+        log.info(f'delay: dropping response for {oid}')
         raise error.NoDataNotification()
 
     log.info('delay: waiting %d milliseconds for %s' % (delay, oid))
@@ -175,7 +175,7 @@ def record(oid, tag, value, **context):
         text_value = 'hexvalue=' + context['hexvalue']
 
     else:
-        text_value = 'value=' + value
+        text_value = f'value={value}'
 
     text_value += ',wait=%d' % int((time.time() - context['reqTime']) * 1000)  # ms
 

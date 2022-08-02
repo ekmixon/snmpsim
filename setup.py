@@ -59,28 +59,28 @@ if sys.version_info[:2] < (2, 7):
     print("ERROR: this package requires Python 2.7 or later!")
     sys.exit(1)
 
-params = {
-    'install_requires': ['pysnmp>=4.4.3,<5.0.0'],
-    'zip_safe': False  # this is due to data and variation dirs
-}
-
 doclines = [x.strip() for x in (__doc__ or '').split('\n') if x]
 
-params.update(
-    {'name': 'snmpsim',
-     'version': open(os.path.join('snmpsim', '__init__.py')).read().split('\'')[1],
-     'description': doclines[0],
-     'long_description': ' '.join(doclines[1:]),
-     'maintainer': 'Ilya Etingof <etingof@gmail.com>',
-     'author': 'Ilya Etingof',
-     'author_email': 'etingof@gmail.com',
-     'url': 'http://snmplabs.com/snmpsim',
-     'license': 'BSD',
-     'platforms': ['any'],
-     'classifiers': [x for x in classifiers.split('\n') if x],
-     'packages': setuptools.find_packages(),
-     'include_package_data': True,
-     'entry_points': {
+params = {
+    'install_requires': ['pysnmp>=4.4.3,<5.0.0'],
+    'zip_safe': False,  # this is due to data and variation dirs
+} | {
+    'name': 'snmpsim',
+    'version': open(os.path.join('snmpsim', '__init__.py'))
+    .read()
+    .split('\'')[1],
+    'description': doclines[0],
+    'long_description': ' '.join(doclines[1:]),
+    'maintainer': 'Ilya Etingof <etingof@gmail.com>',
+    'author': 'Ilya Etingof',
+    'author_email': 'etingof@gmail.com',
+    'url': 'http://snmplabs.com/snmpsim',
+    'license': 'BSD',
+    'platforms': ['any'],
+    'classifiers': [x for x in classifiers.split('\n') if x],
+    'packages': setuptools.find_packages(),
+    'include_package_data': True,
+    'entry_points': {
         'console_scripts': [
             'snmpsim-manage-records = snmpsim.commands.rec2rec:main',
             'snmpsim-record-mibs = snmpsim.commands.mib2rec:main',
@@ -89,8 +89,8 @@ params.update(
             'snmpsim-command-responder = snmpsim.commands.responder:main',
             'snmpsim-command-responder-lite = snmpsim.commands.responder_lite:main',
         ]
-     }}
-)
+    },
+}
 
 # install stock variation modules as data_files
 params['data_files'] = [

@@ -37,7 +37,7 @@ class ReportingManager(object):
             reporter = cls.REPORTERS[fmt]
 
         except KeyError:
-            raise error.SnmpsimError('Unsupported reporting format: %s' % fmt)
+            raise error.SnmpsimError(f'Unsupported reporting format: {fmt}')
 
         cls._reporter = reporter(*args)
 
